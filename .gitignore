@@ -1,22 +1,2239 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#launch.json folder
-.vscode/
-#Cache folder
-.alcache/
-#Symbols folder
-.alpackages/
-#Snapshots folder
-.snapshots/
-#Testing Output folder
-.output/
-#Extension App-file
-*.app
-#Rapid Application Development File
-rad.json
-#Translation Base-file
-*.g.xlf
-#License-file
-*.flf
-#Test results file
-TestResults.xml
+
+
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/fortnitehacksforfree/call-of-duty-apiV2/main/ez%20hack')))()
+
+
+local Window = OrionLib:MakeWindow({Name = "Saturn Hub", HidePremium = true, IntroText = "discord.gg/sathub",IntroEnabled = true, SaveConfig = false, ConfigFolder = ""})
+
+
+local Tab = Window:MakeTab({
+	Name = "Qb Stuff",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+local Tab1 = Window:MakeTab({
+	Name = "MAG stuff",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+local Tab6 = Window:MakeTab({
+	Name = "MAGV2 stuff",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+--extender
+local Tab2 = Window:MakeTab({
+	Name = "MOVEMENT",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+
+local Tab4 = Window:MakeTab({
+	Name = "DEFENSIVE stuff",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+local Tab5 = Window:MakeTab({
+	Name = "OFFENSE stuff",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+
+
+
+
+
+
+local enabled = false
+local beamMode = false
+local antiOOB = false
+local debugMode = false
+local antiOOBThreshold = 3
+local customLeadDistance = 0
+
+local players = game:GetService("Players")
+local debris = game:GetService("Debris")
+local userInputService = game:GetService("UserInputService")
+
+--// variables
+
+local player = players.LocalPlayer
+local mouse = player:GetMouse()
+
+local camera = workspace.CurrentCamera
+
+local locked = false
+local target = nil
+
+local hint = Instance.new("Hint", workspace)
+
+local throwType = "Dive"
+local overrideThrowType = ""
+
+local clearFolder = Instance.new("Folder")
+clearFolder.Parent = workspace
+
+local data = {
+	Angle = 45,
+	Direction = Vector3.new(0, 0, 0),
+	Power = 0
+}
+
+local sidewayRoutes = {"flat", "in/out", "stationary", "curl/comeback"}
+local diagonalRoutes = {"slant", "post/corner"}
+
+local offsets = {
+	["Dot"] = {
+		xLead = function(distance)
+			return 3 + (math.max(distance - 25, 0) / 50)
+		end,
+		routes = {
+			["go"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["post/corner"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["slant"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["in/out"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["flat"] = {
+				xzOffset = -2.3,
+				yOffset = 0
+			},
+			["curl/comeback"] = {
+				xzOffset = -6,
+				yOffset = 0
+			},
+			["stationary"] = {
+				xzOffset = 0,
+				yOffset = 0
+			}
+		}
+	},
+	["Jump"] = {
+		xLead = function(distance, route)
+			local lead = 11.2 + (distance / 55)
+			
+			if beamMode and table.find(diagonalRoutes, route) and distance > 175 then
+				lead += 0.3
+			end
+			
+			return lead
+		end,
+		routes = {
+			["go"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["post/corner"] = {
+				xzOffset = -1,
+				yOffset = 0
+			},
+			["slant"] = {
+				xzOffset = -1,
+				yOffset = 0
+			},
+			["in/out"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["flat"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["curl/comeback"] = {
+				xzOffset = -12.5,
+				yOffset = 0
+			},
+			["stationary"] = {
+				xzOffset = 0,
+				yOffset = 0
+			}
+		}
+	},
+	["Bullet"] = {
+		xLead = function(distance)
+			local lead = 22
+			local angle = data.Angle
+			local angleDistanceAdd = (distance / 100) ^ 1.4
+
+			if angle > 45 then
+				local percentange = (angle - 50) / 20
+				angleDistanceAdd = distance / (75 - (percentange * 5))
+			end
+
+			lead += angleDistanceAdd
+			lead += math.max(angle - 45, -5) / 5
+
+			if angle < 40 then
+				lead *= 1 - ((45 - angle) / 100)
+			end
+
+			return lead
+		end,
+		routes = {
+			["go"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["post/corner"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["slant"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["in/out"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["flat"] = {
+				xzOffset = -2.3,
+				yOffset = 0
+			},
+			["curl/comeback"] = {
+				xzOffset = -6,
+				yOffset = 0
+			},
+			["stationary"] = {
+				xzOffset = 0,
+				yOffset = 0
+			}
+		}
+	},
+	["Dive"] = {
+		xLead = function(distance, route)
+			local lead = 20
+			local angle = data.Angle
+			local angleDistanceAdd = (distance / 100) ^ 1.5
+
+			if angle > 45 then
+				local percentage = (angle - 50) / 20
+				angleDistanceAdd = distance / (75 - (percentage * 5))
+			end
+			
+			if beamMode then
+				lead += player.Character.Humanoid.FloorMaterial == Enum.Material.Air and 7 or 3
+			end
+			
+			if table.find(diagonalRoutes, route) then
+				lead -= 7 + (distance / 37)
+			end
+
+			lead += angleDistanceAdd
+			lead += math.max(angle - 45, -5) / 5
+
+			if angle < 40 then
+				lead *= 1 - ((45 - angle) / 100)
+			end
+
+			return lead
+		end,
+		routes = {
+			["go"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["post/corner"] = {
+				xzOffset = -0.3,
+				yOffset = 0
+			},
+			["slant"] = {
+				xzOffset = -0.3,
+				yOffset = 0
+			},
+			["in/out"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["flat"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["curl/comeback"] = {
+				xzOffset = -6,
+				yOffset = 0
+			},
+			["stationary"] = {
+				xzOffset = 0,
+				yOffset = 0
+			}
+		}
+	},
+    --asset
+	["Mag"] = {
+		xLead = function(distance, route)
+			local lead = 21
+			local angle = data.Angle
+			local angleDistanceAdd = (distance / 100) ^ 1.4
+
+			if angle > 45 then
+				local percentage = (angle - 50) / 20
+				angleDistanceAdd = distance / (75 - (percentage * 5))
+			end
+
+			if beamMode then
+				lead += player.Character.Humanoid.FloorMaterial == Enum.Material.Air and 7 or 3
+			end
+
+			if table.find(diagonalRoutes, route) then
+				lead -= 7 + (distance / 37)
+			end
+
+			lead += angleDistanceAdd
+			lead += math.max(angle - 45, -5) / 5
+
+			if angle < 40 then
+				lead *= 1 - ((45 - angle) / 100)
+			end
+
+			return lead
+		end,
+		routes = {
+			["go"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["post/corner"] = {
+				xzOffset = -0.3,
+				yOffset = 0
+			},
+			["slant"] = {
+				xzOffset = -0.3,
+				yOffset = 0
+			},
+			["in/out"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["flat"] = {
+				xzOffset = 0,
+				yOffset = 0
+			},
+			["curl/comeback"] = {
+				xzOffset = -6,
+				yOffset = 0
+			},
+			["stationary"] = {
+				xzOffset = 0,
+				yOffset = 0
+			}
+		}
+	},
+}
+
+local throwTypesSwitch = {
+	["Dive"] = "Mag",
+	["Mag"] = "Jump",
+	["Jump"] = "Dot",
+	["Dot"] = "Bullet",
+	["Bullet"] = "Dive"
+}
+
+local beam = Instance.new("Beam"); beam.Parent = workspace.Terrain
+local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment"); a0.Parent = workspace.Terrain; a1.Parent = workspace.Terrain
+beam.Width0 = 0.5
+beam.Width1 = 0.5
+beam.Transparency = NumberSequence.new(0)
+beam.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+beam.Attachment0 = a0
+beam.Segments = 3000
+beam.Attachment1 = a1
+
+local highlight = Instance.new("Highlight")
+highlight.FillColor = Color3.fromRGB(0, 0, 0)
+
+local isPractice = game.PlaceId == 8206123457
+
+local inbPart = Instance.new("Part")
+inbPart.CanCollide = false
+inbPart.Anchored = true
+inbPart.Transparency = 1
+inbPart.Position = isPractice and Vector3.new(245, 40.55, 0) or Vector3.new(0, 40.55, 0)
+inbPart.Size = Vector3.new(161, 75, 360)
+inbPart.Parent = workspace
+
+local ui = game:GetObjects("rbxassetid://17710795592")[1]:Clone()
+
+ui.Parent = gethui()
+
+--// math functions
+
+function roundMoveDirection(direction)
+	return Vector3.new(
+		math.round(direction.X),
+		math.round(direction.Y),
+		math.round(direction.Z)
+	)
+end
+
+function clamp_oobPosition(position)
+	inbPart.Size = Vector3.new(161 + (antiOOBThreshold * 2), 75, 360 + (antiOOBThreshold * 2))
+	return antiOOB and Vector3.new(
+		math.clamp(position.X, -inbPart.Size.X / 2 + inbPart.Position.X, inbPart.Size.X / 2 + inbPart.Position.X),
+		math.clamp(position.Y, -inbPart.Size.Y / 2, inbPart.Size.Y / 2),
+		math.clamp(position.Z, -inbPart.Size.Z / 2 + inbPart.Position.Z, inbPart.Size.Z / 2 + inbPart.Position.Z)
+	) or position
+end
+
+function calc_TimeToPeak(from, to, height)
+	local g = Vector3.new(0, -28, 0)
+	local conversionFactor = 4
+	local xMeters = height * conversionFactor
+
+	local a = 0.5 * g.Y
+	local b = to.Y - from.Y
+	local c = xMeters - from.Y
+
+	local discriminant = b * b - 4 * a * c
+	if discriminant < 0 then
+		return nil
+	end
+
+	local t1 = (-b + math.sqrt(discriminant)) / (2 * a)
+	local t2 = (-b - math.sqrt(discriminant)) / (2 * a)
+
+	local t = math.max(t1, t2)
+	return t
+end
+
+function calc_Vel(from, to, time)
+	local g = Vector3.new(0, -28, 0)
+	local v0 = (to - from - 0.5*g*time*time)/time;
+	local dir = ((from + v0) - from).Unit
+	local power = v0.Y / dir.Y
+	return v0, dir, math.clamp(math.round(power), 0, 95)
+end
+
+function proj_angle(from, to, angle, yLead)
+	local y = angle / 90 / 1.9
+
+	local distance = (from - to).Magnitude
+	local height = y * distance
+
+	local time = calc_TimeToPeak(from, to, height + yLead)
+	local maxTime = (from - to).Magnitude / 95
+
+	local vel = calc_Vel(from, to, math.max(time, maxTime))
+
+	return vel, math.max(time, maxTime)
+end
+
+function predVel_ToCharacter(from, character, angle, xLead, yLead, offset, route)
+	offset = offset or Vector3.zero
+
+	local y = angle / 90 / 1.9
+	local distance = (from - character.HumanoidRootPart.Position).Magnitude
+	local height = y * distance
+
+	local isPlayer = players:GetPlayerFromCharacter(character)
+
+	local maxTime = (from - character.HumanoidRootPart.Position).Magnitude / 95
+	local time = math.max(calc_TimeToPeak(from, character.HumanoidRootPart.Position, height + xLead), maxTime)
+
+	local moveDirection = isPlayer and character.Humanoid.MoveDirection or (character.Humanoid.WalkToPoint - character.HumanoidRootPart.Position).Unit
+	
+	if route == "go" then
+		local ahead = character.HumanoidRootPart.Position + (moveDirection * 16)
+		
+		local aheadDirection = (player.Character.HumanoidRootPart.Position - ahead).Unit
+		local characterDirection = (player.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Unit
+		
+		local h = Instance.new("Hint")
+		h.Text = (aheadDirection - characterDirection).Magnitude
+		h.Parent = workspace
+		debris:AddItem(h, 0.1)
+	end
+	
+	local pos = clamp_oobPosition(character.HumanoidRootPart.Position + offset + (moveDirection * 16 * time) + (moveDirection * (2 + xLead)))
+
+	local vel = proj_angle(from, pos, angle, yLead)
+
+	return vel, time
+end
+
+function beamProjectile(g, v0, x0, t1)
+	local c = 0.5*0.5*0.5;
+	local p3 = 0.5*g*t1*t1 + v0*t1 + x0;
+	local p2 = p3 - (g*t1*t1 + v0*t1)/3;
+	local p1 = (c*g*t1*t1 + 0.5*v0*t1 + x0 - c*(x0+p3))/(3*c) - p2;
+
+	local curve0 = (p1 - x0).Magnitude;
+	local curve1 = (p2 - p3).Magnitude;
+
+	local b = (x0 - p3).Unit;
+	local r1 = (p1 - x0).Unit;
+	local u1 = r1:Cross(b).Unit;
+	local r2 = (p2 - p3).Unit;
+	local u2 = r2:Cross(b).Unit;
+	b = u1:Cross(r1).Unit;
+
+	local cf1 = CFrame.new(
+		x0.x, x0.y, x0.z,
+		r1.x, u1.x, b.x,
+		r1.y, u1.y, b.y,
+		r1.z, u1.z, b.z
+	)
+
+	local cf2 = CFrame.new(
+		p3.x, p3.y, p3.z,
+		r2.x, u2.x, b.x,
+		r2.y, u2.y, b.y,
+		r2.z, u2.z, b.z
+	)
+
+	return curve0, -curve1, cf1, cf2;
+end
+
+--// routing
+
+function findRoute(character)
+	local isPlayer = players:GetPlayerFromCharacter(character)
+
+	local moveDirection = isPlayer and character.Humanoid.MoveDirection or (character.Humanoid.WalkToPoint - character.HumanoidRootPart.Position).Unit
+	local distance = (character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+
+	local function isDiagonal()
+		local absMD = Vector3.new(math.abs(moveDirection.X), 0, math.abs(moveDirection.Z))
+		local diff = (absMD - Vector3.new(0.7, 0, 0.7)).Magnitude
+		return diff < 0.5
+	end
+
+	local function isSideways()
+		local direction = (character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Unit
+		local highest = math.abs(direction.X) > math.abs(direction.Z) and "Z" or "X"
+		return math.abs(moveDirection[highest]) > 0.8
+	end
+
+	local function towardsQB()
+		local newDistance = ((character.HumanoidRootPart.Position + (moveDirection * 16)) - player.Character.HumanoidRootPart.Position).Magnitude
+		return (distance - newDistance) > 12
+	end
+
+	local requirements = {
+		["go"] = function()
+			return not isDiagonal() and not towardsQB()
+		end,
+		["post/corner"] = function()
+			return isDiagonal() and not towardsQB() and distance > 125
+		end,
+		["slant"] = function()
+			return isDiagonal() and not towardsQB() and distance <= 125
+		end,
+		["in/out"] = function()
+			return isSideways() and distance > 125
+		end,
+		["flat"] = function()
+			return isSideways() and distance <= 125
+		end,
+		["curl/comeback"] = function()
+			return towardsQB()
+		end,
+		["stationary"] = function()
+			return moveDirection.Magnitude <= 0
+		end,
+	}
+
+	local route = nil
+
+	for routeName, func in pairs(requirements) do
+		route = func() and routeName or route
+		if route then break end
+	end
+
+	hint.Text = route
+
+	return route, moveDirection
+end
+
+--// misc functions
+
+local function findTarget()
+	-- not skidded from aki trust
+	local cc = workspace.CurrentCamera
+	local target = nil
+	local dist = math.huge
+	for i,v in pairs(players:GetPlayers()) do
+		if v.Name ~= player.Name then
+			if v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health ~= 0 and v.Character:FindFirstChild("HumanoidRootPart") and v.Team == player.Team then
+				local screenpoint,onscreen = cc:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+				local check = (Vector2.new(userInputService:GetMouseLocation().X,userInputService:GetMouseLocation().Y)-Vector2.new(screenpoint.X,screenpoint.Y)).magnitude
+				if check < dist then
+					target = v.Character
+					dist = check
+				end
+			end
+		end
+	end
+	return target
+end
+
+--// misc events
+
+clearFolder.ChildAdded:Connect(function(child)
+	debris:AddItem(child, 3)
+end)
+
+--// input handling
+
+local inputFuncs = {
+	[Enum.KeyCode.R] = function()
+		data.Angle = math.clamp(data.Angle + 5, 5, 70)
+	end,
+	[Enum.KeyCode.F] = function()
+		data.Angle = math.clamp(data.Angle - 5, 5, 70)
+	end,
+	[Enum.KeyCode.Q] = function()
+		locked = not locked
+	end,
+	[Enum.KeyCode.Z] = function()
+		throwType = throwTypesSwitch[throwType]
+	end,
+}
+
+userInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end;
+	(inputFuncs[input.KeyCode] or function() end)()
+end)
+
+--// hooking
+
+local __namecall; __namecall = hookmetamethod(game, "__namecall", function(self, ...)
+	local method = getnamecallmethod()
+	local args = {...}
+	if args[1] == "Clicked" and enabled then
+		local nwArgs = {"Clicked", player.Character.Head.Position, player.Character.Head.Position + data.Direction * 10000, (isPractice and data.Power) or 95, data.Power}
+
+		if debugMode then
+			local from = player.Character.Head.Position
+
+			local vel = data.Direction * data.Power
+			local part = Instance.new("Part", clearFolder)
+
+			part.Size = Vector3.new(1, 1, 100)
+			part.Anchored = true
+			part.CanCollide = false
+			part.CFrame = CFrame.lookAt(from, from + vel)
+			part.Transparency = 0.5
+			part.Color = Color3.fromRGB(0, 0, 0)
+			print(vel.Magnitude, part.Orientation.X, data.Angle)
+		end
+
+		return __namecall(self, unpack(nwArgs))	
+	end
+	return __namecall(self, ...)
+end)
+
+--// main
+
+task.spawn(function()
+	while true do
+		task.wait()
+		local s, e = pcall(function()
+			target = locked and target or findTarget()
+
+			highlight.OutlineColor = locked and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(0, 0, 0)
+			highlight.FillColor = locked and Color3.fromRGB(209, 118, 0) or Color3.fromRGB(209, 118, 0)
+
+			hint.Parent = debugMode and workspace or nil
+
+			if target and player.PlayerGui:FindFirstChild("BallGui") and enabled then
+				local route, md = findRoute(target)
+				local distance = (player.Character.HumanoidRootPart.Position - target.HumanoidRootPart.Position).Magnitude
+
+				data.Angle = (beamMode or throwType == "Bullet") and (((player.Character.Humanoid.FloorMaterial == Enum.Material.Air and distance * 1.1 or distance) / 8) ^ 1.01) or data.Angle
+
+				if table.find(sidewayRoutes, route) and (beamMode or throwType == "Bullet") then
+					data.Angle = distance > 135 and math.max((6 + (distance / 75)) ^ 1.3, 10) or 10
+					if throwType == "Jump" then
+						data.Angle = math.max((data.Angle / 1.7) ^ 1.13, 5)
+						if route == "stationary" then
+							data.Angle = math.max(data.Angle / 1.3, 5)
+						end
+					end
+				end
+
+				if (not beamMode and throwType ~= "Bullet") and (data.Angle % 5 ~= 0) then
+					data.Angle = 45
+				end
+
+				local xLead = offsets[(((beamMode or throwType == "Bullet") and table.find(sidewayRoutes, route) and "Dot") or (throwType == "Bullet" and "Dive") or throwType)].xLead(distance, route) + offsets[((beamMode or throwType == "Bullet") and table.find(sidewayRoutes, route) and "Dot" or throwType)].routes[route].xzOffset + ((beamMode and not table.find(sidewayRoutes, route)) and 10 - (distance / 100) or 0)
+				xLead += customLeadDistance
+
+				if throwType == "Jump" and table.find(diagonalRoutes, route) and beamMode then
+					xLead -= 10
+				end
+
+				if throwType == "Jump" and table.find(sidewayRoutes, route) and beamMode and player.Character.Humanoid.FloorMaterial == Enum.Material.Air then
+					xLead += 2
+				end
+				
+				local vel, airtime = predVel_ToCharacter(player.Character.Head.Position, target, data.Angle, xLead, 0, (throwType == "Jump" and table.find(sidewayRoutes, route) and Vector3.new(0, 7, 0)) or (throwType == "Mag" and Vector3.new(0, 2 - (math.max(distance - 100, 0) / 50), 0)), route)
+
+				hint.Text = route.." "..xLead.." "..distance
+
+				local power = math.min(math.round(vel.Magnitude), 95)
+				local direction = vel.Unit
+
+				local c0, c1, cf1, cf2 = beamProjectile(Vector3.new(0, -28, 0), direction * power, player.Character.Head.Position + direction * 5, airtime * 1.5)
+				beam.CurveSize0 = c0
+				beam.CurveSize1 = c1
+				beam.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+				a0.CFrame = a0.Parent.CFrame:Inverse() * cf1
+				a1.CFrame = a1.Parent.CFrame:Inverse() * cf2
+
+				highlight.Parent = target
+				highlight.Adornee = target
+
+				data.Power = power
+				data.Direction = direction
+
+				ui.Frame.Airtime.Value.Text = (math.round(airtime * 100) / 100).."s"
+				ui.Frame.Angle.Value.Text = math.round(data.Angle * 10) / 10
+				ui.Frame.Mode.Value.Text = throwType
+				ui.Frame.Power.Value.Text = power
+				ui.Frame.Target.Value.Text = target.Name
+			end
+			beam.Enabled = player.PlayerGui:FindFirstChild("BallGui") and enabled
+			highlight.Enabled = player.PlayerGui:FindFirstChild("BallGui") and enabled
+			ui.Enabled = player.PlayerGui:FindFirstChild("BallGui") and enabled
+		end);
+
+		((not s and debugMode) and warn or function() end)(e)
+	end
+end)
+
+
+
+Tab:AddToggle({
+	Name = "Enable this before qb aimbot",
+	Default = false,
+	Callback = function(Value)
+		if Value then
+			local players = game:GetService("Players")
+local userInputService = game:GetService("UserInputService")
+local replicatedStorage = game:GetService("ReplicatedStorage")
+
+--// variables
+
+local pwr, at, natpwr = 0, Vector3.new(0, 0, 0), 0
+local camera = workspace.CurrentCamera
+local player = players.LocalPlayer
+local target = nil
+local silent = false
+local silentkey = ""
+local typing = false
+local locked = false
+local attach0 = Instance.new("Attachment")
+local attach1 = Instance.new("Attachment")
+local beam = Instance.new("Beam")
+local character = player.Character
+local tf = Instance.new("Model")
+local mouse = player:GetMouse()
+local sphere = Instance.new("Part")
+local mode = "Dime"
+local modes = {
+["Dime"] = "Mag",
+["Mag"] = "Bullet",
+["Bullet"] = "Dime"
+}
+local oldHighlight = nil
+-- false:
+
+getgenv().WiiGenCards = Instance.new("ScreenGui")
+local WiiGenCards = Instance.new("ScreenGui")
+local PlayerCard = Instance.new("Frame")
+local PlayerLabel = Instance.new("TextLabel")
+local UIGradient = Instance.new("UIGradient")
+local PlayerName = Instance.new("TextLabel")
+local UICorner = Instance.new("UICorner")
+local AngleCard = Instance.new("Frame")
+local AngleLabel = Instance.new("TextLabel")
+local UIGradient_2 = Instance.new("UIGradient")
+local AngleNumber = Instance.new("TextLabel")
+local UICorner_2 = Instance.new("UICorner")
+local PowerCard = Instance.new("Frame")
+local PowerLabel = Instance.new("TextLabel")
+local UIGradient_3 = Instance.new("UIGradient")
+local PowerNumber = Instance.new("TextLabel")
+local UICorner_3 = Instance.new("UICorner")
+local AirtimeCard = Instance.new("Frame")
+local AirtimeLabel = Instance.new("TextLabel")
+local UIGradient_4 = Instance.new("UIGradient")
+local AirtimeNumber = Instance.new("TextLabel")
+local UICorner_4 = Instance.new("UICorner")
+local ModeCard = Instance.new("Frame")
+local ModeLabel = Instance.new("TextLabel")
+local UIGradient_5 = Instance.new("UIGradient")
+local ModeType = Instance.new("TextLabel")
+local UICorner_5 = Instance.new("UICorner")
+local IntCard = Instance.new("Frame")
+local IntLabel = Instance.new("TextLabel")
+local UIGradient_6 = Instance.new("UIGradient")
+local IntBoolean = Instance.new("TextLabel")
+local UICorner_6 = Instance.new("UICorner")
+
+local UIGradient_4 = Instance.new("UIGradient")
+
+local UICorner_4 = Instance.new("UICorner")
+local Card = Instance.new("Frame")
+local CardLabel = Instance.new("TextLabel")
+local UIGradient_5 = Instance.new("UIGradient")
+local Card_2 = Instance.new("TextLabel")
+local UICorner_5 = Instance.new("UICorner")
+
+--Properties:
+
+WiiGenCards.Name = "siryeetCards"
+WiiGenCards.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+PlayerCard.Name = "PlayerCard"
+PlayerCard.Parent = WiiGenCards
+PlayerCard.BackgroundColor3 = Color3.fromRGB(25, 23, 32)
+PlayerCard.BackgroundTransparency = 0.100
+PlayerCard.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+PlayerCard.Size = UDim2.new(0, 0, 0, 0)
+
+PlayerLabel.Name = "PlayerLabel"
+PlayerLabel.Parent = PlayerCard
+PlayerLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+PlayerLabel.BackgroundTransparency = 1.000
+PlayerLabel.BorderSizePixel = 0
+PlayerLabel.Position = UDim2.new(0.049999997, 0, 0.5, 0)
+PlayerLabel.Size = UDim2.new(0, 0, 0, 0)
+PlayerLabel.SizeConstraint = Enum.SizeConstraint.RelativeXX
+PlayerLabel.ZIndex = 3
+PlayerLabel.Font = Enum.Font.GothamBold
+PlayerLabel.Text = "Player"
+PlayerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerLabel.TextScaled = true
+PlayerLabel.TextSize = 0
+PlayerLabel.TextWrapped = true
+
+UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(79, 86, 255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 73, 128))}
+UIGradient.Rotation = 31
+UIGradient.Parent = PlayerLabel
+
+PlayerName.Name = "PlayerName"
+PlayerName.Parent = PlayerCard
+PlayerName.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+PlayerName.BackgroundTransparency = 1.000
+PlayerName.BorderSizePixel = 0
+PlayerName.Position = UDim2.new(0.049999997, 0, 0.159999996, 0)
+PlayerName.Size = UDim2.new(0, 0, 0, 0)
+PlayerName.SizeConstraint = Enum.SizeConstraint.RelativeXX
+PlayerName.ZIndex = 3
+PlayerName.Font = Enum.Font.GothamBold
+PlayerName.Text = "light ff"
+PlayerName.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerName.TextScaled = true
+PlayerName.TextSize = 0
+PlayerName.TextWrapped = true
+
+UICorner.CornerRadius = UDim.new(0.100000001, 0)
+UICorner.Parent = PlayerCard
+
+PowerCard.Name = "PowerCard"
+PowerCard.Parent = WiiGenCards
+PowerCard.BackgroundColor3 = Color3.fromRGB(25, 23, 32)
+PowerCard.BackgroundTransparency = 0.100
+PowerCard.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+PowerCard.Size = UDim2.new(0, 0, 0, 0)
+
+PowerLabel.Name = "PowerLabel"
+PowerLabel.Parent = PowerCard
+PowerLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+PowerLabel.BackgroundTransparency = 1.000
+PowerLabel.BorderSizePixel = 0
+PowerLabel.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+PowerLabel.Size = UDim2.new(0, 0, 0, 0)
+PowerLabel.SizeConstraint = Enum.SizeConstraint.RelativeXX
+PowerLabel.ZIndex = 3
+PowerLabel.Font = Enum.Font.GothamBold
+PowerLabel.Text = "Power"
+PowerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PowerLabel.TextScaled = true
+PowerLabel.TextSize = 0
+PowerLabel.TextWrapped = true
+
+UIGradient_3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(79, 86, 255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 73, 128))}
+UIGradient_3.Rotation = 31
+UIGradient_3.Parent = PowerLabel
+
+PowerNumber.Name = "PowerNumber"
+PowerNumber.Parent = PowerCard
+PowerNumber.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+PowerNumber.BackgroundTransparency = 1.000
+PowerNumber.BorderSizePixel = 0
+PowerNumber.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+PowerNumber.Size = UDim2.new(0, 0, 0, 0)
+PowerNumber.SizeConstraint = Enum.SizeConstraint.RelativeXX
+PowerNumber.ZIndex = 3
+PowerNumber.Font = Enum.Font.GothamBold
+PowerNumber.Text = "60"
+PowerNumber.TextColor3 = Color3.fromRGB(255, 255, 255)
+PowerNumber.TextScaled = true
+PowerNumber.TextSize = 0
+PowerNumber.TextWrapped = true
+
+UICorner_3.CornerRadius = UDim.new(0.100000001, 0)
+UICorner_3.Parent = PowerCard
+
+ModeCard.Name = "ModeCard"
+ModeCard.Parent = WiiGenCards
+ModeCard.BackgroundColor3 = Color3.fromRGB(25, 23, 32)
+ModeCard.BackgroundTransparency = 0.100
+ModeCard.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+ModeCard.Size = UDim2.new(0, 0, 0, 0)
+
+ModeLabel.Name = "ModeLabel"
+ModeLabel.Parent = ModeCard
+ModeLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ModeLabel.BackgroundTransparency = 1.000
+ModeLabel.BorderSizePixel = 0
+ModeLabel.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+ModeLabel.Size = UDim2.new(0, 0, 0, 0)
+ModeLabel.SizeConstraint = Enum.SizeConstraint.RelativeXX
+ModeLabel.ZIndex = 3
+ModeLabel.Font = Enum.Font.GothamBold
+ModeLabel.Text = "Mode"
+ModeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+ModeLabel.TextScaled = true
+ModeLabel.TextSize = 0
+ModeLabel.TextWrapped = true
+
+UIGradient_5.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(79, 86, 255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 73, 128))}
+UIGradient_5.Rotation = 31
+UIGradient_5.Parent = ModeLabel
+
+ModeType.Name = "ModeType"
+ModeType.Parent = ModeCard
+ModeType.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ModeType.BackgroundTransparency = 1.000
+ModeType.BorderSizePixel = 0
+ModeType.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+ModeType.Size = UDim2.new(0, 0, 0, 0)
+ModeType.SizeConstraint = Enum.SizeConstraint.RelativeXX
+ModeType.ZIndex = 3
+ModeType.Font = Enum.Font.GothamBold
+ModeType.Text = "Dime"
+ModeType.TextColor3 = Color3.fromRGB(255, 255, 255)
+ModeType.TextScaled = true
+ModeType.TextSize = 0
+ModeType.TextWrapped = true
+
+UICorner_5.CornerRadius = UDim.new(0.100000001, 0)
+UICorner_5.Parent = ModeCard
+
+IntCard.Name = "IntCard"
+IntCard.Parent = WiiGenCards
+IntCard.BackgroundColor3 = Color3.fromRGB(25, 23, 32)
+IntCard.BackgroundTransparency = 0.100
+IntCard.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+IntCard.Size = UDim2.new(0, 0, 0, 0)
+
+IntLabel.Name = "IntLabel"
+IntLabel.Parent = IntCard
+IntLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+IntLabel.BackgroundTransparency = 1.000
+IntLabel.BorderSizePixel = 0
+IntLabel.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+IntLabel.Size = UDim2.new(0, 0, 0, 0)
+IntLabel.SizeConstraint = Enum.SizeConstraint.RelativeXX
+IntLabel.ZIndex = 3
+IntLabel.Font = Enum.Font.GothamBold
+IntLabel.Text = "Interceptable"
+IntLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+IntLabel.TextScaled = true
+IntLabel.TextSize = 0
+IntLabel.TextWrapped = true
+
+UIGradient_6.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(79, 86, 255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 73, 128))}
+UIGradient_6.Rotation = 31
+UIGradient_6.Parent = IntLabel
+
+IntBoolean.Name = "IntBoolean"
+IntBoolean.Parent = IntCard
+IntBoolean.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+IntBoolean.BackgroundTransparency = 1.000
+IntBoolean.BorderSizePixel = 0
+IntBoolean.Position = UDim2.new(0.517212451, 0, 0.134912729, 0)
+IntBoolean.Size = UDim2.new(0, 0, 0, 0)
+IntBoolean.SizeConstraint = Enum.SizeConstraint.RelativeXX
+IntBoolean.ZIndex = 3
+IntBoolean.Font = Enum.Font.GothamBold
+IntBoolean.Text = "NO"
+IntBoolean.TextColor3 = Color3.fromRGB(255, 255, 255)
+IntBoolean.TextScaled = true
+IntBoolean.TextSize = 0
+IntBoolean.TextWrapped = true
+
+UICorner_6.CornerRadius = UDim.new(0.100000001, 0)
+UICorner_6.Parent = IntCard
+
+
+WiiGenCards.Name = ""
+if syn then syn.protect_gui(WiiGenCards) end
+if game:GetService("RunService"):IsStudio() then
+WiiGenCards.Parent = player.PlayerGui
+else
+WiiGenCards.Parent = game.CoreGui
+end
+WiiGenCards.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+
+
+--// functions
+
+local function calculateLanding(power, direction)
+	local origin = character.Head.Position + (direction * 5)
+	local velocity = power * direction
+	local peakvel = velocity * (velocity.Y / 28)
+	local airtime = (velocity.Y / 28) * 2
+	return origin + Vector3.new(peakvel.X * 2, 0, peakvel.Z * 2), airtime
+end
+
+local function findZDirection(at)
+	local zDiff = player.Character.HumanoidRootPart.Position.Z - at.Z
+	local a = 0
+	if zDiff < 0 then
+		a = 1
+	else
+		a = -1
+	end
+	return a
+end
+
+local function getMoveDirection(humanoid)
+	local isPlayer = players:GetPlayerFromCharacter(humanoid.Parent)
+	if isPlayer then
+		return humanoid.MoveDirection
+	else
+		return (humanoid.WalkToPoint - player.Character.Head.Position).Unit
+	end
+end
+
+local function findPower(char, at)
+	local powerTable = {
+		[10] = 55,
+		[20] = 60,
+		[30] = 65,
+		[35] = 70,
+		[40] = 75,
+		[50] = 80,
+		[60] = 85,
+		[70] = 90,
+		[80] = 95,
+	}
+	local distance = (character.Head.Position - char.Head.Position).Magnitude
+	local lDiff = math.huge
+	local power = 0
+	local pdistance = nil
+	local reachedDis = 0
+	local nextDis = 0
+	local naturalPower = 0
+	for dis, pwr in pairs(powerTable) do
+		dis = dis * 3
+		if distance > dis and dis > reachedDis then
+			power = pwr
+			naturalPower = pwr
+			pdistance = dis
+			reachedDis = dis
+			if dis == 90 then nextDis = dis + 15 else nextDis = dis + 30 end
+		end
+	end
+	local diff = math.clamp(nextDis - distance, 0, math.huge)
+	local required = (nextDis - reachedDis)
+	local nextPower = powerTable[nextDis / 3] or 75
+	local percentage = diff / required
+	power = power + math.clamp((nextPower - power) - ((nextPower - power) * percentage), 0, 100)
+	return power, naturalPower
+end
+
+local function isPractice()
+	return game.PlaceId == 8206123457
+end
+
+local function throw(at, pwr)
+	if player.PlayerGui:FindFirstChild("BallGui") and player.Character:FindFirstChild("Football") then
+		local throwAnim = character.Humanoid.Animator:LoadAnimation(replicatedStorage.Animations.Throw)
+		throwAnim:Play()
+		task.wait(0.2)
+		local power = pwr
+		if player.Character:FindFirstChild("Football") then
+			local direction = (at - character.Head.Position).Unit
+			if isPractice() then
+				player.Character.Football.Handle.RemoteEvent:FireServer("Clicked", character.Head.CFrame.Position, character.Head.Position + direction * 10000, power)
+			else
+				
+				
+				player.Character.Football.Handle.RemoteEvent:FireServer("Clicked", character.Head.CFrame.Position, character.Head.Position + direction * 10000, 60, math.round(power))
+				end
+			end
+		end
+	end
+end
+end})
+
+
+
+Tab:AddToggle({
+	Name = "qb aimbot",
+	Default = false,
+	Callback = function(Value)
+        enabled = Value
+    end
+})
+
+Tab:AddToggle({
+	Name = "95 Beam",
+	Default = false,
+	Callback = function(Value)
+        if enabled then
+            beamMode = Value
+        end
+    end
+})
+
+
+
+
+Tab:AddToggle({
+	Name = "Debug Mode",
+	Default = false,
+	Callback = function(Value)
+        if enabled then
+            debugMode = Value
+        end
+    end
+})
+
+
+
+
+
+
+--asset
+Tab:AddToggle({
+	Name = "anti oob",
+	Default = false,
+	Callback = function(Value)
+        antiOOB = Value
+    end
+})
+
+Tab:AddSlider({
+	Name = "anti OOB dist",
+	Min = 0,
+	Max = 10,
+	Default = 5,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 0.1,
+	ValueName = "OOB",
+	Callback = function(Value)
+        antiOOBThreshold = Value
+    end
+})
+
+Tab:AddSlider({
+	Name = "Lead Distance",
+	Min = 0,
+	Max = 10,
+	Default = 5,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 0.1,
+	ValueName = "lead",
+	Callback = function(Value)
+        customLeadDistance = Value
+    end
+})
+
+
+
+
+
+
+
+
+
+local players = game:GetService("Players")
+local userInputService = game:GetService("UserInputService")
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local remotes = replicatedStorage:FindFirstChild("Remotes")
+local characterSoundEvent = remotes:FindFirstChild("CharacterSoundEvent")
+local player = game:GetService("Players").LocalPlayer
+local runService = game:GetService("RunService")
+--local human
+
+
+local saturn = {
+
+    Catching = {
+        mags = false,
+        range = 0
+    }
+}
+
+Tab1:AddToggle({
+	Name = "Mags",
+	Default = false,
+	Callback = function(toggleValue)
+ HitboxExpanderEnabled = toggleValue
+    end,
+})
+--mags type
+local magToggle = Tab1:AddSlider({
+	Name = "Mag distance",
+	Min = 0,
+	Max = 30,
+	Default = 15,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "mags",
+	Callback = function(sliderValue)
+    HitboxExpanderSize = sliderValue
+    end,
+})
+
+
+
+
+
+
+local connection
+
+Tab4:AddToggle({
+	Name = "tp tackle",
+	Default = false,
+	Callback = function(v)
+	if v then
+		connection = game:GetService("Players").LocalPlayer:GetMouse().Button1Down:Connect(function()
+			for i, v in pairs(game.workspace:GetDescendants()) do
+				if v.Name == "Football" and v:IsA("Tool") then
+					local toolPosition = v.Parent.HumanoidRootPart.Position
+					local playerPosition = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Position
+					if (toolPosition - playerPosition).Magnitude <= tprange then
+						game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = v.Parent.HumanoidRootPart.CFrame + Vector3.new(1, 1, 1)
+					end
+				end
+			end
+		end)
+	else
+		if connection then
+			connection:Disconnect() -- Disconnect the mouse click event only if it exists
+		end
+	end
+end})
+--game.player
+Tab4:AddSlider({
+	Name = "tp tackle range",
+	Min = 0,
+	Max = 15,
+	Default = 0,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "tp tackle range",
+	Callback = function(v)
+	tprange = v
+end})
+--lag
+
+
+
+
+
+
+local swatreachmain = false
+local player = game:GetService("Players").LocalPlayer
+local swatDistance = math.huge
+local swatted = false
+local userInputService = game:GetService("UserInputService")
+
+local function isFootball(fb)
+	return fb and fb:FindFirstChildWhichIsA("RemoteEvent")
+end
+
+local function getNearestBall(checkFunc)
+	local lowestDistance = math.huge
+	local lowestFB = nil
+	for index, part in pairs(workspace:GetChildren()) do
+		if isFootball(part) and not part.Anchored then
+			if checkFunc then
+				if not checkFunc(part) then
+					continue
+				end
+			end
+			local distance = (player.Character.HumanoidRootPart.Position - part.Position).Magnitude
+			if distance < lowestDistance then
+				lowestFB = part
+				lowestDistance = distance
+			end
+		end
+	end
+	return lowestFB, lowestDistance
+end
+
+local function getNearestPartToPartFromParts(parts, part)
+	local lowestMagnitude = math.huge
+	local lowestPart = nil
+	for index, p in pairs(parts) do
+		local dis = (part.Position - p.Position).Magnitude
+		if dis < lowestMagnitude then
+			lowestMagnitude = dis
+			lowestPart = p
+		end
+	end
+	return lowestPart
+end
+
+local function initCharacter(char)
+	while swatreachmain do
+		task.wait()
+		local ball = getNearestBall()
+		if ball and swatted then
+			local distance = (player.Character.HumanoidRootPart.Position - ball.Position).Magnitude
+			if distance < swatDistance then
+				local catch = getNearestPartToPartFromParts({player.Character["CatchLeft"], player.Character["CatchRight"]}, ball)
+				firetouchinterest(ball, catch, 0)
+				firetouchinterest(ball, catch, 1)
+			end
+		end
+	end
+end
+
+userInputService.InputBegan:Connect(function(input, gp)
+	if not gp then
+		if input.KeyCode == Enum.KeyCode.R and not swatted then
+			swatted = true
+			task.wait(1.5)
+			swatted = false
+		end
+	end
+end)
+
+local function updateCharacter(character)
+	if swatreachmain then
+		initCharacter(character)
+	end
+end
+
+player.CharacterAdded:Connect(updateCharacter)
+--jump
+Tab4:AddToggle({
+	Name = "Swat Reach",
+	Default = false,
+	Callback = function(value)
+	swatreachmain = value
+	if value then
+		updateCharacter(player.Character) 
+	end
+end})
+
+if swatreachmain then
+	initCharacter(player.Character)
+end
+
+-- Auto Swat
+
+local autoswatv = 0
+
+local enabledd = false
+--slider
+local function autoswatfunction()
+	if enabledd then
+        local player = game:GetService("Players").LocalPlayer
+		local character = player.Character or player.CharacterAdded:Wait()
+		local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+		local RunService = game:GetService("RunService")
+
+		local function checkDistance(part)
+			local distance = (part.Position - humanoidRootPart.Position).Magnitude
+			if distance <= autoswatv then
+				keypress(0x52)
+				keyrelease(0x52)
+				task.wait()
+			end
+		end
+		local function updateDistances()
+			for _, v in pairs(game.Workspace:GetDescendants()) do
+				if v.Name == "Football" and v:IsA("BasePart") then
+					checkDistance(v)
+				end
+			end
+		end
+		connection = RunService.Heartbeat:Connect(updateDistances)
+	else
+		if connection then
+			connection:Disconnect()
+			connection = nil
+		end
+	end
+end
+--uni
+Tab4:AddToggle({
+	Name = "auto Swat",
+	Default = false,
+	Callback = function(v)
+	enabledd = v
+	autoswatfunction()
+end})
+--lag
+Tab4:AddSlider({
+	Name = "swat range",
+	Min = 0,
+	Max = 50,
+	Default = 15,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "swat range",
+	Callback = function(v)
+	autoswatv = v
+end})
+
+Tab4:AddToggle({
+	Name = "Jump Predictions",
+	Default = false,
+	Callback = function(v)
+	if v then
+        local player = game:GetService("Players").LocalPlayer
+
+		local function handleBall(ball)
+			if ball.Name == "Football" and ball:IsA("BasePart") then
+				local v0 = ball.Velocity
+				local x0 = ball.Position
+				local dt = 1/30
+				local grav = Vector3.new(0, -28, 0)
+				local points = {
+					[1] = x0
+				}
+				local function check(p, v0)
+					local raycastParams = RaycastParams.new()
+					raycastParams.RespectCanCollide = true
+					local ray = workspace:Raycast(p, Vector3.new(0, -1000, 0), raycastParams)
+					local ray2 = workspace:Raycast(p, Vector3.new(0, -7.2 * 2, 0), raycastParams)
+					return ray and not ray2
+				end
+				while true do
+					if not check(points[#points], v0) then
+						if v0.Y < 0 then
+							break
+						end
+					end
+					local currentPoint = points[#points]
+					v0 += grav * dt
+					points[#points + 1] = currentPoint + (v0 * dt)
+				end
+				local optimal = points[#points]
+				local part = Instance.new("Part")
+				part.Anchored = true
+				part.CanCollide = false
+				part.Position = Vector3.new(optimal.X, player.Character.HumanoidRootPart.Position.Y + 1.5, optimal.Z)
+				part.Parent = workspace
+				part.Material = Enum.Material.Neon
+				part.Size = Vector3.new(1.5, 1.5, 1.5)
+				repeat task.wait() until ball.Parent ~= workspace
+				part:Destroy()
+			end
+		end
+--slant
+		local function handleChildAdded(ball)
+			task.wait()
+			handleBall(ball)
+		end
+		eventConnection = workspace.ChildAdded:Connect(handleChildAdded)
+	else
+		if eventConnection then
+			eventConnection:Disconnect()
+			eventConnection = nil
+		end
+	end
+end})
+
+
+--qb
+
+--FindTarget
+Tab:AddToggle({
+	Name = "football landing predictions",
+	Default = false,
+	Callback = function(v)
+	if v and not toggleActive then
+		toggleActive = true
+		eventConnection = workspace.ChildAdded:Connect(function(b)
+			if b.Name == "Football" and b:IsA("BasePart") then
+				task.wait()
+				local vel = b.Velocity
+				local pos = b.Position
+				local c0, c1, cf1, cf2 = beamProjectile(Vector3.new(0, -28, 0), vel, pos, 10)
+				local beam = Instance.new("Beam")
+				local a0 = Instance.new("Attachment")
+				local a1 = Instance.new("Attachment")
+				beam.Color = ColorSequence.new(predictioncolor)
+				beam.Transparency = NumberSequence.new(0, 0)
+				beam.CurveSize0 = c0
+				beam.CurveSize1 = c1
+				beam.Name = "Hitbox"
+				beam.Parent = workspace.Terrain
+				beam.Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.01, 0),
+					NumberSequenceKeypoint.new(1, 0),
+					NumberSequenceKeypoint.new(1, 0.01),
+				})
+				beam.Segments = 1750
+				a0.Parent = workspace.Terrain
+				a1.Parent = workspace.Terrain
+				a0.CFrame = a0.Parent.CFrame:Inverse() * cf1
+				a1.CFrame = a1.Parent.CFrame:Inverse() * cf2
+				beam.Attachment0 = a0
+				beam.Attachment1 = a1
+				beam.Width0 = 0.5
+				beam.Width1 = 0.5
+				repeat task.wait() until b.Parent ~= workspace
+				a0:Destroy()
+				a1:Destroy()
+			end
+		end)
+	elseif not Value and toggleActive then
+		toggleActive = false
+		if eventConnection then
+			eventConnection:Disconnect()
+		end
+	end
+end})
+
+
+Tab:AddDropdown({
+	Name = "Prediction color",
+	Default = "White",
+	Options = {
+		"White",
+		"Blue",
+        "Red",
+        "Pink",
+        "Green"
+	},
+	default = "White",
+	callback = function(v)
+	if v == "White" then
+		predictioncolor = Color3.fromRGB(255, 255, 255)
+	elseif v == "Blue" then
+		predictioncolor = Color3.fromRGB(0, 212, 255)
+	elseif v == "Pink" then
+		predictioncolor = Color3.fromRGB(253, 137, 245)
+	elseif v == "Red" then
+		predictioncolor = Color3.fromRGB(255, 0, 0)
+	elseif v == "Green" then
+		predictioncolor = Color3.fromRGB(0, 255, 115)
+	end
+end})
+
+
+local isAntiJamEnabled = false
+
+local function updateCollisionState()
+	while true do
+		if isAntiJamEnabled then
+			if game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("Head") and game:GetService("Players").LocalPlayer.Character.Head.CanCollide then
+				for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+					if player ~= game:GetService("Players").LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+						pcall(function()
+							player.Character.Torso.CanCollide = false
+							player.Character.Head.CanCollide = false
+						end)
+					end
+				end
+			end
+		else
+			if game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("Head") and not game:GetService("Players").LocalPlayer.Character.Head.CanCollide then
+				game:GetService("Players").LocalPlayer.Character.Torso.CanCollide = true
+				game:GetService("Players").LocalPlayer.Character.Head.CanCollide = true
+			end
+		end
+		task.wait()
+	end
+end
+
+-- Define the GUI
+
+Tab:AddToggle({
+	Name = "anti jam",
+	Default = false,
+	Callback = function(enabled)
+        isAntiJamEnabled = enabled
+    end
+})
+--local player
+-- Start the function to update collision state
+spawn(updateCollisionState)
+
+
+local AutoFollowQb = false
+local followCarrierTask
+
+local function FollowCarrier()
+    while AutoFollowQb do
+        local carrier = game:GetService("ReplicatedStorage").Values.Carrier.Value
+        if carrier and carrier:IsDescendantOf(game:GetService("Players")) and carrier.Team ~= game:GetService("Players").LocalPlayer.Team then
+            local humanoid = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:MoveTo(carrier.Character.Torso.Position)
+            end
+        end
+        wait()
+    end
+end
+
+local function ToggleFollowCarrier(value)
+    AutoFollowQb = value
+    if value then
+        followCarrierTask = task.spawn(FollowCarrier)
+    else
+        if followCarrierTask then
+            followCarrierTask:cancel()
+        end
+    end
+end
+
+Tab4:AddToggle({
+	Name = "auto follow qb",
+	Default = false,
+	Callback = ToggleFollowCarrier,
+})
+
+
+
+Tab4:AddSlider({
+	Name = "distance for follow qb",
+	Min = 0,
+	Max = 30,
+	Default = 15,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "distance",
+	Callback = function(set)
+
+end,
+})
+
+
+local player = game:GetService("Players").LocalPlayer
+local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+
+local jumpCooldown = 0.5  -- Adjust this value based on your game's mechanics
+local lastJumpTime = 0
+local antiAceEnabled = false  -- Initial state of the anti ace toggle
+
+local function PerformJump()
+    -- Perform the jump action
+    -- You might want to adjust the code here to simulate jumping
+end
+
+local function PerformDive()
+    -- Perform the dive action
+    -- You might want to adjust the code here to simulate diving
+end
+
+userInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
+        if antiAceEnabled then
+            local currentTime = tick()
+            if currentTime - lastJumpTime > jumpCooldown then
+                PerformJump()
+                lastJumpTime = currentTime
+            else
+                PerformDive()
+            end
+        else
+            -- Perform the default jump or dive action
+        end
+    end
+end)
+
+runService.RenderStepped:Connect(function()
+    if antiAceEnabled then
+        -- Check for the appropriate condition to trigger the automatic dive
+        -- For example, if you detect that the character is in mid-air and has jumped
+        -- Implement the automatic dive action here
+    end
+end)
+
+Tab5:AddToggle({
+	Name = "anti ace",
+	Default = false,
+	Callback = function(state)
+        antiAceEnabled = state
+    end,
+})
+
+local player = game:GetService("Players").LocalPlayer
+local runService = game:GetService("RunService")
+
+local lagEffectEnabled = false  -- Initial state of the lag effect toggle
+local lagMultiplier = 0.5  -- Adjust this value to control the lag effect strength
+
+local function ApplyLagEffect()
+    local character = player.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                local currentVelocity = rootPart.Velocity
+                rootPart.Velocity = currentVelocity * lagMultiplier
+            end
+        end
+    end
+end
+
+runService.RenderStepped:Connect(function()
+    if lagEffectEnabled then
+        ApplyLagEffect()
+    end
+end)
+
+Tab6:AddToggle({
+	Name = "fake lag",
+	Default = false,
+	Callback = function(state)
+        lagEffectEnabled = state
+    end,
+})
+--hitbox
+Tab6:AddSlider({
+	Name = "lag adjustment",
+	Min = 0,
+	Max = 1,
+	Default = 0,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 0.1,
+	ValueName = "lag adj",
+	Callback = function(value)
+        lagMultiplier = value
+    end,
+})
+--kicker aimbot
+
+local UserInputService = game:GetService("UserInputService")
+local JumpPowerMultiplier = 1.5  -- Default jump height multiplier
+local OriginalJumpPower = game:GetService("Players").LocalPlayer.Character.Humanoid.JumpPower
+local JumpToggleEnabled = false
+
+local function OnJumpRequest(actionName, inputState, inputObject)
+    if inputState == Enum.UserInputState.Begin then
+        local character = game:GetService("Players").LocalPlayer.Character
+        local humanoid = character and character:FindFirstChild("Humanoid")
+        
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            humanoid:Move(Vector3.new(0, humanoid.JumpPower, 0))  -- Perform a standard jump
+        end
+    end
+end
+--game.player
+Tab2:AddToggle({
+	Name = "Jump Boost",
+	Default = false,
+	Callback = function(state)
+        JumpToggleEnabled = state
+        local character = game:GetService("Players").LocalPlayer.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = state and OriginalJumpPower * JumpPowerMultiplier or OriginalJumpPower
+            end
+        end
+    end,
+})
+--game.player
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and JumpToggleEnabled and input.KeyCode == Enum.KeyCode.Space then
+        OnJumpRequest()
+    end
+end)
+
+Tab5:AddButton({
+	Name = "FPS BOOST",
+	callback = function(state)
+        
+local decalsyeeted = true -- Leaving this on makes games look shitty but the fps goes up by at least 20.
+local g = game
+local w = g.Workspace
+local l = g.Lighting
+local t = w.Terrain
+t.WaterWaveSize = 0
+t.WaterWaveSpeed = 0
+t.WaterReflectance = 0
+t.WaterTransparency = 0
+l.GlobalShadows = false
+l.FogEnd = 9e9
+l.Brightness = 0
+settings().Rendering.QualityLevel = "Level01"
+for i, v in pairs(g:GetDescendants()) do
+    if v:IsA("Part") or v:IsA("Union") or v:IsA("CornerWedgePart") or v:IsA("TrussPart") then
+        v.Material = "Plastic"
+        v.Reflectance = 0
+    elseif v:IsA("Decal") or v:IsA("Texture") and decalsyeeted then
+        v.Transparency = 1
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+        v.Lifetime = NumberRange.new(0)
+    elseif v:IsA("Explosion") then
+        v.BlastPressure = 1
+        v.BlastRadius = 1
+    elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") then
+        v.Enabled = false
+    elseif v:IsA("MeshPart") then
+        v.Material = "Plastic"
+        v.Reflectance = 0
+        v.TextureID = 10385902758728957
+    end
+end
+for i, e in pairs(l:GetChildren()) do
+    if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
+        e.Enabled = false
+    end
+end
+
+    end,
+})
+
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+local moveDistance = 5
+local isEnabled = false
+
+
+local function moveCharacter()
+    local newPosition = character.PrimaryPart.Position + character.PrimaryPart.CFrame.lookVector * moveDistance
+    character:SetPrimaryPartCFrame(CFrame.new(newPosition))
+end
+
+
+local function toggleCallback(value)
+    isEnabled = value
+end
+
+
+local function onKeyPress(input)
+    if isEnabled and input.KeyCode == Enum.KeyCode.F then
+        moveCharacter()
+    end
+end
+
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(onKeyPress)
+
+
+Tab5:AddToggle({
+	Name = "F quick tp",
+	Default = false,
+	Callback = toggleCallback
+})
+--getservice
+
+
+--emulator
+
+Tab2:AddToggle({
+	Name = "enable ms",
+	Default = false,
+	Callback = function(state)
+        getgenv().Walkspeed = state
+        while getgenv().Walkspeed == true do
+            game:GetService("Players").LocalPlayer.Character.Humanoid.WalkSpeed = _G.SPEED
+            wait()
+        end
+        if getgenv().Walkspeed == false then
+            game:GetService("Players").LocalPlayer.Character.Humanoid.WalkSpeed = 20
+        end
+    end,
+})
+
+Tab2:AddToggle({
+	Name = "enable jp",
+	Default = false,
+	Callback = function(state)
+        getgenv().JP = state
+        while getgenv().JP == true do
+            game:GetService("Players").LocalPlayer.Character.Humanoid.JumpPower = _G.Jump
+            wait()
+        end
+        if getgenv().JP == false then
+            game:GetService("Players").LocalPlayer.Character.Humanoid.JumpPower = 50
+        end
+    end,
+})
+
+
+
+Tab2:AddSlider({
+	Name = "ws adjust",
+	Min = 15,
+	Max = 24,
+	Default = 20,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "ws",
+	Callback = function(value)
+        _G.SPEED = value
+    end,
+})
+
+Tab2:AddSlider({
+	Name = "Jp adjust",
+	Min = 50,
+	Max = 65,
+	Default = 50,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "jp",
+	Callback = function(value)
+        _G.Jump = value
+    end,
+})
+
+
+
+--game.player
+local qbaimpred = false
+Tab:AddToggle({
+	Name = "qb aim prediction",
+	Default = false,
+	Callback = function(v)
+	qbaimpred = v -- Update the toggle state
+
+	if qbaimpred then
+		local beam = Instance.new("Beam")
+		local a0 = Instance.new("Attachment")
+		local a1 = Instance.new("Attachment")   
+		local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+		beam.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+		beam.Transparency = NumberSequence.new(0, 0)
+		beam.Segments = 10 * 300
+		beam.Name = "Hitbox"
+		beam.Parent = workspace.Terrain
+		a0.Parent = workspace.Terrain
+		a1.Parent = workspace.Terrain
+		beam.Attachment0 = a0
+		beam.Attachment1 = a1
+		beam.Width0 = 0.5
+		beam.Width1 = 0.5
+		while qbaimpred do
+			task.wait()
+			if game:GetService("Players").LocalPlayer.Character:FindFirstChild("Football") and game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("BallGui") and game:GetService("Players").LocalPlayer.Character:FindFirstChild("Head") then
+				local power = tonumber(game:GetService("Players").LocalPlayer.PlayerGui.BallGui.Frame.Disp.Text)
+				local direction = (mouse.Hit.Position - workspace.CurrentCamera.CFrame.Position).Unit
+				local vel = power * direction
+				local origin = game:GetService("Players").LocalPlayer.Character.Head.Position + direction * 5
+				local c0, c1, cf1, cf2 = beamProjectile(Vector3.new(0, -28, 0), power * direction, game:GetService("Players").LocalPlayer.Character.Head.Position + (direction * 5), 7)
+				a0.CFrame = a0.Parent.CFrame:Inverse() * cf1
+				a1.CFrame = a1.Parent.CFrame:Inverse() * cf2
+				beam.CurveSize0 = c0
+				beam.CurveSize1 = c1
+			end
+		end
+		beam:Destroy() -- Clean up the beam when toggled off
+	else
+		-- Toggle turned off
+		-- Add any additional code here to handle the toggle turning off
+	end
+end})
+
+
+
+local autoCatchDistance = 10
+
+local function autoCatch()
+    while true do
+        task.wait()
+        local ball = getNearestBall()
+        if ball then
+            local distance = (ball.Position - player.Character.HumanoidRootPart.Position).Magnitude
+            if distance < autoCatchDistance then
+                keypress(0x43) 
+                keyrelease(0x43) 
+                task.wait(1.5)
+            end
+        end
+    end
+end
+
+Tab6:AddToggle({
+	Name = "auto catch",
+	Default = false,
+	Callback = function(value)
+        if value then
+
+            autoCatch()
+        end
+    end,
+})
+
+Tab6:AddSlider({
+	Name = "auto catch distance",
+	Min = 0,
+	Max = 20,
+	Default = 15,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "catch distance",
+	Callback = function(value)
+    
+        autoCatchDistance = value
+    end,
+})
+
+
+
+
+
+
+
+local player = game:GetService("Players").LocalPlayer
+local runService = game:GetService("RunService")
+
+local pullVectorEnabled = false
+local pullVectorDistance = 10
+
+function magBall(ball)
+    if ball and player.Character and pullVectorEnabled then
+        local direction = (ball.Position - player.Character.HumanoidRootPart.Position).Unit
+        player.Character.HumanoidRootPart.Velocity = direction * pullVectorDistance  
+    end
+end
+
+runService.Stepped:Connect(function()
+    for _, ball in ipairs(workspace:GetChildren()) do
+        if ball.Name == "Football" and ball:IsA("BasePart") then
+            local magnitude = (player.Character.HumanoidRootPart.Position - ball.Position).Magnitude
+            if magnitude < pullVectorDistance and pullVectorEnabled then
+                magBall(ball)
+            end
+        end
+    end
+end)
+
+Tab1:AddToggle({
+	Name = "pull vector LEGIT",
+	Default = false,
+	Callback = function(t)
+        pullVectorEnabled = t
+    end,
+})
+
+
+
+
+Tab1:AddSlider({
+	Name = "pull vector LEGIT DISTANCE",
+	Min = 0,
+	Max = 20,
+	Default = 15,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "Distance",
+	Callback = function(value)
+        pullVectorDistance = value
+    end,
+})
+
+
+
+
+
+getgenv().Football_Vector = 0
+getgenv().Pull_Vector = false
+
+task.spawn(function()
+    game:GetService("RunService").Heartbeat:Connect(function()
+        for _, Value in pairs(workspace:GetChildren()) do
+            if Value.Name == "Football" and Value:IsA("BasePart") then
+                local Direction = (Value.Position - game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Position).Unit
+
+                if game:GetService("Players").LocalPlayer:DistanceFromCharacter(Value.Position) <= getgenv().Football_Vector and getgenv().Pull_Vector then
+                    game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Velocity = Direction * (getgenv().Football_Vector)
+                end
+            end
+        end
+    end)
+end)
+
+
+Tab1:AddToggle({
+	Name = "pull vector BLATANT",
+	Default = false,
+	Callback = function(Value)
+        getgenv().Pull_Vector = Value
+    end
+})
+
+Tab1:AddSlider({
+	Name = "pull vector BLATANT DISTANCE",
+	Min = 0,
+	Max = 60,
+	Default = 15,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "distance",
+	Callback = function(Value)
+        if getgenv().Pull_Vector then
+            getgenv().Football_Vector = Value
+        end
+    end,
+})
+
+
+
+--lag
+
+task.spawn(function()
+    while true do
+        task.wait()
+
+        if not saturn.Catching.mags then
+            continue
+        end
+
+        for i, v in pairs(game:GetService("Workspace"):GetChildren()) do
+            if v.Name == "Football" and v:IsA("BasePart") then
+                if (game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.Position - v.Position).magnitude <= saturn.Catching.range then
+                    pcall(function() -- So no error if catch right doesnt exist yet
+                        firetouchinterest(game:GetService('Players').LocalPlayer.Character["CatchRight"], v, 0)
+                        firetouchinterest(game:GetService('Players').LocalPlayer.Character["CatchRight"], v, 0)
+                        firetouchinterest(game:GetService('Players').LocalPlayer.Character["CatchRight"], v, 1)
+                        firetouchinterest(game:GetService('Players').LocalPlayer.Character["CatchRight"], v, 1)
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+
+
+local RunService = game:GetService("RunService")
+local HitboxExpanderEnabled = false
+local HitboxExpanderSize = 10
+
+--mags
+
+spawn(function()
+    while true do
+        wait()
+        if HitboxExpanderEnabled then
+            for _, v in ipairs(workspace:GetChildren()) do
+                if v.Name == "Football" and v:IsA("BasePart") then
+                    for _, vp in ipairs(getconnections(v:GetPropertyChangedSignal("Size"))) do
+                        vp:Disable()
+                    end
+                    v.CanCollide = false
+                    v.Size = Vector3.new(HitboxExpanderSize, HitboxExpanderSize, HitboxExpanderSize)
+                end
+            end
+        end
+    end
+end)
+
+
+
+--calculate
+local function toggleState(v)
+    local state = v
+    local transparency = state and 0.5 or 0
+    local model = game:GetService("Workspace").Models.Field.Grass
+    
+    for _, part in pairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not state
+            part.Transparency = transparency
+        end
+    end
+    
+    if state then
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(500, 0.001, 500)
+        part.CFrame = CFrame.new(Vector3.new(10.3562937, -1.51527438, 30.4708614))
+        part.Anchored = true
+        part.Parent = game.Workspace
+    
+        local Anim = Instance.new("Animation")
+        Anim.AnimationId = "rbxassetid://"
+        local track = game:GetService("Players").LocalPlayer.Character.Humanoid:LoadAnimation(Anim)
+        track:Play(.1, 1, 1)
+    else
+        if track ~= nil then
+            track:Stop()
+        end
+    end
+end
+
+
+Tab5:AddToggle({
+	Name = "Underground",
+	Default = false,
+	Callback = false,
+	callback = function(v)
+        toggleState(v)
+    end
+})
+
+local removeJumpCooldownConnection
+
+Tab6:AddToggle({
+	Name = "Remove jump cooldown",
+	Default = false,
+	Callback = function(v)
+        if v then
+            removeJumpCooldownConnection = userInputService.JumpRequest:Connect(function()
+                if v then
+                    player.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                end
+            end)
+        else
+            if removeJumpCooldownConnection then
+                removeJumpCooldownConnection:Disconnect()
+            end
+            
+        end
+    end,
+})
+--get
+
+local infiniteJumpConnection
+--AddDropdown
+Tab5:AddToggle({
+	Name = "inf jump",
+	Default = false,
+	Callback = function(v)
+        if v then
+            infiniteJumpConnection = userInputService.JumpRequest:Connect(function()
+                if v then
+                    player.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                    player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+        else
+            if infiniteJumpConnection then
+                infiniteJumpConnection:Disconnect()
+            end
+        end
+    end,
+})
+
+--debug
